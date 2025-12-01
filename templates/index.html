@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Стратегия развития службы поддержки</title>
+    <style>
+        :root {
+            --primary: #2563eb;       
+            --secondary: #475569;     
+            --accent: #0ea5e9;        
+            --success: #10b981;       
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --text: #1e293b;
+            --border: #e2e8f0;
+        }
+
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); line-height: 1.6; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        /* HEADER */
+        header { background: linear-gradient(135deg, #1e293b, #334155); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        header h1 { margin: 0; font-size: 2rem; }
+        header p { margin: 10px 0 0; opacity: 0.9; font-size: 1.1rem; }
+        .auth-controls { position: absolute; top: 25px; right: 25px; display: flex; gap: 10px; }
+        .btn-auth { padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600; border: 1px solid rgba(255,255,255,0.3); transition: 0.2s; color: white; background: rgba(255,255,255,0.1); }
+        .btn-auth:hover { background: rgba(255,255,255,0.25); }
+        #logoutBtn { display: none; background: rgba(239, 68, 68, 0.25); border-color: rgba(239, 68, 68, 0.5); }
+        #loginBtn { display: block; }
+        body.is-admin #loginBtn { display: none; }
+        body.is-admin #logoutBtn { display: block; }
+
+        /* DASHBOARD METRICS */
+        .dashboard-section { margin-bottom: 40px; }
+        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .dash-title { font-size: 1.4rem; font-weight: 700; color: var(--secondary); display: flex; align-items: center; gap: 10px; }
+        .yandex-badge { background: #fc0; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        
+        .kpi-card { background: white; border-radius: 12px; padding: 15px 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 4px solid var(--primary); position: relative; }
+        .kpi-value { font-size: 2.2rem; font-weight: 800; color: var(--text); line-height: 1.2; }
+        .kpi-label { font-size: 0.85rem; color: var(--secondary); margin-top: 5px; text-transform: uppercase; font-weight: 600; }
+        .kpi-date { font-size: 0.75rem; color: #94a3b8; margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 8px; }
+
+        .edit-metrics-btn { display: none; background: var(--primary); color: white; border: none; padding: 6px 15px; border-radius: 6px; cursor: pointer; }
+        body.is-admin .edit-metrics-btn { display: block; }
+
+        /* MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal { background: white; padding: 30px; border-radius: 12px; width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: var(--secondary); }
+        .form-group input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; box-sizing: border-box; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-cancel, .btn-save { padding: 8px 16px; border-radius: 6px; cursor: pointer; border: none; }
+        .btn-cancel { background: #e2e8f0; color: var(--text); }
+        .btn-save { background: var(--primary); color: white; }
+
+        /* CONTENT STYLES */
+        .section-title { border-left: 5px solid var(--primary); padding-left: 15px; margin: 40px 0 20px 0; color: var(--secondary); font-size: 1.5rem; font-weight: 700; }
+        
+        .gantt-wrapper { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow-x: auto; margin-bottom: 30px; border: 1px solid var(--border); }
+        .gantt-grid { display: grid; grid-template-columns: 250px repeat(6, 1fr); gap: 1px; background-color: var(--border); border: 1px solid var(--border); min-width: 800px; }
+        .gantt-header, .gantt-cell { background-color: white; padding: 10px; font-size: 0.9rem; display: flex; align-items: center; }
+        .gantt-header { font-weight: bold; background-color: #f1f5f9; justify-content: center; }
+        .gantt-task { font-weight: 600; justify-content: flex-start; padding-left: 15px; }
+        .bar-container { grid-column: 2 / span 6; background: white; position: relative; height: 40px; }
+        .bar { position: absolute; height: 24px; top: 8px; border-radius: 4px; color: white; font-size: 0.75rem; display: flex; align-items: center; padding-left: 10px; white-space: nowrap; overflow: hidden; }
+        .bar.phase1 { background: #ef4444; left: 0%; width: 33%; }
+        .bar.phase2 { background: #3b82f6; left: 33%; width: 33%; }
+        .bar.phase3 { background: #10b981; left: 66%; width: 34%; }
+
+        /* Tables & SLA */
+        .phase-card { background: var(--card-bg); border-radius: 12px; padding: 25px; margin-bottom: 20px; border: 1px solid var(--border); }
+        .phase-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; }
+        .phase-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .phase-meta { font-size: 0.85rem; color: var(--secondary); background: #f1f5f9; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+        th { text-align: left; background: #f8fafc; padding: 12px; color: var(--secondary); font-weight: 600; border-bottom: 2px solid var(--border); }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+        
+        /* SLA Table specific */
+        .sla-table th { background: #e0f2fe; color: #0369a1; }
+        .priority-high { color: #dc2626; font-weight: bold; }
+        .priority-med { color: #d97706; font-weight: bold; }
+
+        .okr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px; }
+        .okr-box { background: #fff; border-left: 5px solid var(--accent); border-radius: 8px; padding: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        .okr-box h3 { margin-top: 0; color: var(--text); display: flex; align-items: center; gap: 10px; }
+        .steps-list { list-style: none; padding: 0; margin: 15px 0; flex-grow: 1; }
+        .steps-list li { position: relative; padding-left: 20px; margin-bottom: 12px; font-size: 0.95rem; }
+        .steps-list li::before { content: "•"; color: var(--accent); font-weight: bold; position: absolute; left: 0; top: 0; }
+        
+        .file-zone { margin-top: 20px; padding-top: 15px; border-top: 1px dashed var(--border); background: #fafbfc; border-radius: 0 0 8px 8px; padding: 15px; }
+        .file-list { list-style: none; padding: 0; margin: 10px 0; font-size: 0.85rem; }
+        .file-list li { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; background: white; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; }
+        .file-list a { text-decoration: none; color: var(--primary); font-weight: 500; }
+        
+        .admin-only { display: none !important; }
+        body.is-admin .admin-only { display: flex !important; }
+        .delete-btn { display: none; color: #ef4444; cursor: pointer; font-weight: bold; margin-left: 10px; }
+        body.is-admin .delete-btn { display: block; }
+        .upload-controls { gap: 10px; align-items: center; margin-top: 10px; }
+        button.upload-btn { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Стратегия развития службы поддержки</h1>
+        <p>Дорожная карта, SLA и Метрики</p>
+        <div class="auth-controls">
+            <button class="btn-auth" id="loginBtn" onclick="loginAdmin()">🔐 Админ Вход</button>
+            <button class="btn-auth" id="logoutBtn" onclick="logoutAdmin()">🚪 Выйти</button>
+        </div>
+    </header>
+
+    <div class="dashboard-section">
+        <div class="dash-header">
+            <div class="dash-title">📊 Показатели IT Support <span class="yandex-badge">Yandex Tracker</span></div>
+            <button class="edit-metrics-btn" onclick="openMetricsModal()">✏️ Обновить данные</button>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="kpi-card" style="border-top-color: #2563eb;">
+                <div class="kpi-value" id="val-tickets">...</div>
+                <div class="kpi-label">Открытые заявки</div>
+                <div class="kpi-date">Актуально: <span class="val-date">-</span></div>
+            </div>
+            <div class="kpi-card" style="border-top-color: #10b981;">
+                <div class="kpi-value" id="val-sla">...</div>
+                <div class="kpi-label">SLA (Сроки)</div>
+                <div class="kpi-date">Цель: > 95%</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: #0ea5e9;">
+                <div class="kpi-value" id="val-csat">...</div>
+                <div class="kpi-label">CSAT (Оценка)</div>
+                <div class="kpi-date">Цель: 5.0</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: #8b5cf6;">
+                <div class="kpi-value" id="val-fcr">...</div>
+                <div class="kpi-label">FCR (С 1-го раза)</div>
+                <div class="kpi-date">Цель: > 75%</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: #ef4444;">
+                <div class="kpi-value" id="val-incidents">...</div>
+                <div class="kpi-label">Доля Инцидентов</div>
+                <div class="kpi-date">Цель: < 20%</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: #f59e0b;">
+                <div class="kpi-value" id="val-time">...</div>
+                <div class="kpi-label">Ср. время решения</div>
+                <div class="kpi-date">Часы</div>
+            </div>
+        </div>
+    </div>
+
+    <h2 class="section-title">1. График реализации (Roadmap)</h2>
+    <div class="gantt-wrapper">
+        <div class="gantt-grid">
+            <div class="gantt-cell gantt-header">Этап / Месяц</div>
+            <div class="gantt-cell gantt-header">М1</div><div class="gantt-cell gantt-header">М2</div>
+            <div class="gantt-cell gantt-header">М3</div><div class="gantt-cell gantt-header">М4</div>
+            <div class="gantt-cell gantt-header">М5</div><div class="gantt-cell gantt-header">М6</div>
+
+            <div class="gantt-cell gantt-task">1. Стабилизация</div>
+            <div class="bar-container"><div class="bar phase1">Аудит • VPN • Инвентаризация</div></div>
+
+            <div class="gantt-cell gantt-task">2. Стандартизация</div>
+            <div class="bar-container"><div class="bar phase2">Регламенты • БЗ • SLA</div></div>
+
+            <div class="gantt-cell gantt-task">3. Оптимизация</div>
+            <div class="bar-container"><div class="bar phase3">Специализация • Развитие</div></div>
+        </div>
+    </div>
+
+    <h2 class="section-title">2. Детализация задач по этапам</h2>
+
+    <div class="phase-card">
+        <div class="phase-header"><div class="phase-title">Этап 1: Стабилизация и Аудит</div><div class="phase-meta">Месяцы 1-2</div></div>
+        <table>
+            <tr><th width="30%">Задача</th><th>Детальный план действий</th><th width="15%">Срок</th></tr>
+            <tr>
+                <td><strong>1.1. Знакомство и Аудит</strong></td>
+                <td>Провести 1-on-1 встречи. Выявить боли. Распределить зоны (SaaS/Железо). Анализ Tracker (история).</td>
+                <td>Неделя 1</td>
+            </tr>
+            <tr>
+                <td><strong>1.2. Анализ нагрузки</strong></td>
+                <td>Выявить ТОП-5 частых проблем. Оценить структуру заявок (~50/нед). Выявить скрытый IT.</td>
+                <td>Недели 1-3</td>
+            </tr>
+            <tr>
+                <td><strong>1.3. Срочное решение VPN</strong></td>
+                <td>Собрать жалобы. Выбрать решение (OpenVPN/WireGuard/Enterprise). Пилотный запуск и инструкция.</td>
+                <td>Недели 2-4</td>
+            </tr>
+            <tr>
+                <td><strong>1.4. Инвентаризация</strong></td>
+                <td>Полный физический пересчет оборудования. Создание реестра активов. Список поддерживаемого ПО.</td>
+                <td>Недели 2-6</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="phase-card">
+        <div class="phase-header"><div class="phase-title">Этап 2: Стандартизация и SLA</div><div class="phase-meta">Месяцы 2-4</div></div>
+        <p style="margin-bottom: 15px;">Внедрение Матрицы Приоритетов для команды (из расчета 3 чел / 50 заявок в неделю).</p>
+        
+        <table class="sla-table" style="margin-bottom: 20px; border: 2px solid #e2e8f0;">
+            <tr>
+                <th>Приоритет</th>
+                <th>Описание</th>
+                <th>Реакция</th>
+                <th>Решение</th>
+            </tr>
+            <tr>
+                <td class="priority-high">🔥 Блокер (Blocker)</td>
+                <td>Остановка бизнеса (Интернет, 1C, Почта у всех).</td>
+                <td>15 мин</td>
+                <td>2-4 часа</td>
+            </tr>
+            <tr>
+                <td class="priority-high">🔴 Высокий (Critical)</td>
+                <td>Не работает ПК у VIP, Склад, VPN у отдела продаж.</td>
+                <td>30 мин</td>
+                <td>8 часов</td>
+            </tr>
+            <tr>
+                <td class="priority-med">🟡 Средний (Normal)</td>
+                <td>Установка ПО, создание учетки, мышка/клавиатура.</td>
+                <td>2 часа</td>
+                <td>3 дня</td>
+            </tr>
+            <tr>
+                <td>🟢 Низкий (Minor)</td>
+                <td>Консультации, плановая замена, "Хотелки".</td>
+                <td>8 часов</td>
+                <td>5 дней</td>
+            </tr>
+        </table>
+
+        <table>
+            <tr><th width="30%">Задача</th><th>Детальный план действий</th><th width="15%">Срок</th></tr>
+            <tr>
+                <td><strong>2.1. Онбординг/Оффбординг</strong></td>
+                <td>Согласовать чек-листы с HR. Настроить автоматическое создание заявок в трекере.</td>
+                <td>Месяц 2</td>
+            </tr>
+            <tr>
+                <td><strong>2.2. Настройка Трекера</strong></td>
+                <td>Внедрить SLA по таблице выше. Настроить авто-ответы робота при создании заявки.</td>
+                <td>Месяц 3</td>
+            </tr>
+            <tr>
+                <td><strong>2.3. Внедрение KPI</strong></td>
+                <td>Утвердить должностные инструкции. Ввести метрики: SLA, FCR, Incidents Rate.</td>
+                <td>Месяц 3</td>
+            </tr>
+            <tr>
+                <td><strong>2.4. База Знаний</strong></td>
+                <td>Выбрать платформу. Описать ТОП-10 проблем. Запустить процесс "Решил — Описал".</td>
+                <td>Месяцы 3-4</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="phase-card">
+        <div class="phase-header"><div class="phase-title">Этап 3: Оптимизация и Развитие</div><div class="phase-meta">Месяцы 4-6</div></div>
+        <table>
+            <tr><th width="30%">Задача</th><th>Детальный план действий</th><th width="15%">Срок</th></tr>
+            <tr>
+                <td><strong>3.1. Специализация</strong></td>
+                <td>Закрепить зоны экспертизы: Яндекс 360, Сети/VPN, Железо. Распределять тикеты по навыкам.</td>
+                <td>Месяц 4</td>
+            </tr>
+            <tr>
+                <td><strong>3.2. Регулярный менеджмент</strong></td>
+                <td>Ежедневные стендапы (15 мин), еженедельные отчеты. Прозрачность работы.</td>
+                <td>Месяц 5</td>
+            </tr>
+            <tr>
+                <td><strong>3.3. Карьерное планирование</strong></td>
+                <td>Провести Performance Review. Составить Индивидуальные планы развития (ИПР) для каждого.</td>
+                <td>Месяц 6</td>
+            </tr>
+        </table>
+    </div>
+
+    <h2 class="section-title">3. Подробный план ОКР (Испытательный срок)</h2>
+    <div class="okr-grid">
+        <div class="okr-box" data-id="email">
+            <h3>📧 ОКР 1: Рассылки</h3>
+            <ul class="steps-list">
+                <li><strong>Аудит (Н1-2):</strong> Выгрузить группы. Пометить "мертвые" и "токсичные".</li>
+                <li><strong>Регламент (Н3-4):</strong> Утвердить владельцев и нейминг.</li>
+                <li><strong>Чистка (Н5-6):</strong> Удалить старое, настроить динамические группы.</li>
+            </ul>
+            <div class="file-zone">
+                <strong>📎 Файлы:</strong><ul class="file-list" id="list-email"></ul>
+                <div class="upload-controls admin-only"><input type="file" id="file-email"><button class="upload-btn" onclick="uploadFile('email')">Загрузить</button></div>
+            </div>
+        </div>
+
+        <div class="okr-box" data-id="contacts">
+            <h3>👤 ОКР 2: Контакты</h3>
+            <ul class="steps-list">
+                <li><strong>Ревизия (Н2):</strong> Поиск дублей скриптом. Сверка с HR.</li>
+                <li><strong>Стандарт (Н3):</strong> Утвердить поля (Фото, ФИО, Отдел, Моб.).</li>
+                <li><strong>Внедрение (Н4-5):</strong> Массовое заполнение.</li>
+            </ul>
+            <div class="file-zone">
+                <strong>📎 Файлы:</strong><ul class="file-list" id="list-contacts"></ul>
+                <div class="upload-controls admin-only"><input type="file" id="file-contacts"><button class="upload-btn" onclick="uploadFile('contacts')">Загрузить</button></div>
+            </div>
+        </div>
+
+        <div class="okr-box" data-id="onboarding">
+            <h3>🔄 ОКР 3: Процессы</h3>
+            <ul class="steps-list">
+                <li><strong>Синхронизация (Н3):</strong> Встреча с HR. Выявление разрывов.</li>
+                <li><strong>Чек-листы (Н4-6):</strong> Мастер-списки Входа/Выхода. Kill-switch.</li>
+                <li><strong>Автоматизация (Н7-8):</strong> Шаблоны задач в Tracker.</li>
+            </ul>
+            <div class="file-zone">
+                <strong>📎 Файлы:</strong><ul class="file-list" id="list-onboarding"></ul>
+                <div class="upload-controls admin-only"><input type="file" id="file-onboarding"><button class="upload-btn" onclick="uploadFile('onboarding')">Загрузить</button></div>
+            </div>
+        </div>
+
+        <div class="okr-box" data-id="knowledge">
+            <h3>📚 ОКР 4: База Знаний</h3>
+            <ul class="steps-list">
+                <li><strong>Платформа (Н1-2):</strong> Выбор (Notion/Wiki). Аудит.</li>
+                <li><strong>Золотой фонд (Н3-5):</strong> Инструкции для ТОП-10 проблем.</li>
+                <li><strong>Методика (Н6+):</strong> Правило «Решил тикет — напиши статью».</li>
+            </ul>
+            <div class="file-zone">
+                <strong>📎 Файлы:</strong><ul class="file-list" id="list-knowledge"></ul>
+                <div class="upload-controls admin-only"><input type="file" id="file-knowledge"><button class="upload-btn" onclick="uploadFile('knowledge')">Загрузить</button></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="metricsModal">
+    <div class="modal">
+        <h2>Обновить показатели</h2>
+        <div class="form-grid">
+            <div class="form-group"><label>Открытые заявки</label><input type="text" id="inp-tickets"></div>
+            <div class="form-group"><label>SLA (%)</label><input type="text" id="inp-sla"></div>
+            <div class="form-group"><label>CSAT (Оценка)</label><input type="text" id="inp-csat"></div>
+            <div class="form-group"><label>Ср. время</label><input type="text" id="inp-time"></div>
+            <div class="form-group"><label>FCR (%)</label><input type="text" id="inp-fcr"></div>
+            <div class="form-group"><label>Инциденты (%)</label><input type="text" id="inp-incidents"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeMetricsModal()">Отмена</button>
+            <button class="btn-save" onclick="saveMetrics()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const OKR_IDS = ['email', 'contacts', 'onboarding', 'knowledge'];
+
+    document.addEventListener('DOMContentLoaded', () => {
+        OKR_IDS.forEach(id => loadFiles(id));
+        loadMetrics(); 
+        if (localStorage.getItem('isAdmin') === 'true') {
+            document.body.classList.add('is-admin');
+        }
+    });
+
+    // --- METRICS ---
+    async function loadMetrics() {
+        try {
+            const res = await fetch('/api/metrics');
+            const data = await res.json();
+            
+            document.getElementById('val-tickets').innerText = data.open_tickets || "-";
+            document.getElementById('val-sla').innerText = data.sla || "-";
+            document.getElementById('val-csat').innerText = data.csat || "-";
+            document.getElementById('val-time').innerText = data.avg_time || "-";
+            document.getElementById('val-fcr').innerText = data.fcr || "-";
+            document.getElementById('val-incidents').innerText = data.incidents || "-";
+            
+            document.querySelectorAll('.val-date').forEach(el => el.innerText = data.last_updated || "-");
+        } catch(e) { console.error(e); }
+    }
+
+    function openMetricsModal() {
+        document.getElementById('inp-tickets').value = document.getElementById('val-tickets').innerText;
+        document.getElementById('inp-sla').value = document.getElementById('val-sla').innerText;
+        document.getElementById('inp-csat').value = document.getElementById('val-csat').innerText;
+        document.getElementById('inp-time').value = document.getElementById('val-time').innerText;
+        document.getElementById('inp-fcr').value = document.getElementById('val-fcr').innerText;
+        document.getElementById('inp-incidents').value = document.getElementById('val-incidents').innerText;
+        document.getElementById('metricsModal').style.display = 'flex';
+    }
+
+    function closeMetricsModal() { document.getElementById('metricsModal').style.display = 'none'; }
+
+    async function saveMetrics() {
+        const data = {
+            open_tickets: document.getElementById('inp-tickets').value,
+            sla: document.getElementById('inp-sla').value,
+            csat: document.getElementById('inp-csat').value,
+            avg_time: document.getElementById('inp-time').value,
+            fcr: document.getElementById('inp-fcr').value,
+            incidents: document.getElementById('inp-incidents').value,
+        };
+        try {
+            const res = await fetch('/admin/metrics', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+            });
+            if (res.ok) { closeMetricsModal(); loadMetrics(); } 
+            else if (res.status === 401) { logoutAdmin(); }
+        } catch(e) { alert("Ошибка сети"); }
+    }
+
+    // --- AUTH & FILES ---
+    async function loginAdmin() {
+        try {
+            const res = await fetch('/admin/check');
+            if (res.ok) {
+                localStorage.setItem('isAdmin', 'true');
+                document.body.classList.add('is-admin');
+                OKR_IDS.forEach(id => loadFiles(id)); 
+            } else { alert("Ошибка входа"); }
+        } catch (e) { console.error(e); }
+    }
+
+    async function logoutAdmin() {
+        localStorage.removeItem('isAdmin');
+        document.body.classList.remove('is-admin');
+        try { await fetch('/admin/check', { headers: { 'Authorization': 'Basic ' + btoa('logout:logout') } }); } catch (e) {}
+        window.location.reload();
+    }
+
+    async function loadFiles(okrId) {
+        try {
+            const res = await fetch(`/api/files/${okrId}`);
+            const data = await res.json();
+            const list = document.getElementById(`list-${okrId}`);
+            list.innerHTML = '';
+            if (data.files && data.files.length > 0) {
+                data.files.forEach(file => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="${file.url}" target="_blank">📄 ${file.name}</a>`;
+                    const delBtn = document.createElement('span');
+                    delBtn.innerHTML = "&times;";
+                    delBtn.className = "delete-btn";
+                    delBtn.onclick = () => deleteFile(okrId, file.name);
+                    li.appendChild(delBtn);
+                    list.appendChild(li);
+                });
+            } else { list.innerHTML = '<li style="color:#94a3b8;border:none;">Нет файлов</li>'; }
+        } catch (e) {}
+    }
+
+    async function uploadFile(okrId) {
+        const input = document.getElementById(`file-${okrId}`);
+        if (!input.files.length) return alert("Файл не выбран");
+        const formData = new FormData();
+        formData.append("file", input.files[0]);
+        const btn = input.nextElementSibling;
+        const oldText = btn.innerText; btn.innerText = "⏳"; btn.disabled = true;
+        try {
+            const res = await fetch(`/admin/upload/${okrId}`, { method: 'POST', body: formData });
+            if (res.ok) { input.value = ''; loadFiles(okrId); } 
+            else if (res.status === 401) { logoutAdmin(); }
+        } catch (e) {}
+        finally { btn.innerText = oldText; btn.disabled = false; }
+    }
+
+    async function deleteFile(okrId, filename) {
+        if (!confirm(`Удалить ${filename}?`)) return;
+        try {
+            const res = await fetch(`/admin/delete/${okrId}/${filename}`, { method: 'DELETE' });
+            if (res.ok) { loadFiles(okrId); } else if (res.status === 401) { logoutAdmin(); }
+        } catch (e) {}
+    }
+</script>
+
+</body>
+</html>

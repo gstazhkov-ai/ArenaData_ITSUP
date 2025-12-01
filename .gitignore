@@ -1,0 +1,7 @@
+# .gitignore
+main           # Сам бинарный файл (для Mac/Linux)
+main.exe       # Для Windows
+uploads/* # Не грузим загруженные файлы на гитхаб
+!uploads/.keep # Но саму папку uploads оставим
+metrics.json   # Локальные метрики не нужны на сервере
+.DS_Store      # Мусор от Mac OS
