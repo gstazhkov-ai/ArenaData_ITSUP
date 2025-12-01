@@ -24,7 +24,7 @@ type MetricsData struct {
 }
 
 var (
-	metricsFile = "metrics.json"
+	metricsFile = "uploads/metrics.json" // <--- Кладем внутрь uploads
 	fileMutex   sync.Mutex
 )
 
